@@ -1,0 +1,22 @@
+[project]
+name = "vayuchat-mcp"
+version = "0.1.0"
+description = "MCP server for natural language data analysis with pandas and matplotlib"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastmcp>=2.0.0",
+    "pandas>=2.0.0",
+    "matplotlib>=3.7.0",
+    "numpy>=1.24.0",
+]
+
+[project.scripts]
+vayuchat-mcp = "vayuchat_mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vayuchat_mcp"]
