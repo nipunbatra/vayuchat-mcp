@@ -51,9 +51,7 @@ def decode_image(image_data: str | None):
 
 
 def process_query(query: str) -> tuple[str, str | None]:
-    """
-    Process a natural language query and return response with optional image.
-    """
+    """Process a natural language query and return response with optional image."""
     query_lower = query.lower()
 
     # Data exploration
@@ -179,12 +177,18 @@ def process_query(query: str) -> tuple[str, str | None]:
 """, None
 
 
-def respond(message: str, history: list) -> tuple[list, Image.Image | None, str]:
+def respond(message: str, history: list[dict]) -> tuple[list[dict], Image.Image | None]:
     """Handle user message and return updated history + image."""
     response_text, img_data = process_query(message)
-    history = history + [(message, response_text)]
+
+    # Gradio 4.x uses dict format for messages
+    history = history + [
+        {"role": "user", "content": message},
+        {"role": "assistant", "content": response_text}
+    ]
+
     img = decode_image(img_data)
-    return history, img, ""
+    return history, img
 
 
 # Build the Gradio interface
@@ -202,7 +206,11 @@ with gr.Blocks(title="VayuChat - Air Quality Analysis", theme=gr.themes.Soft()) 
 
     with gr.Row():
         with gr.Column(scale=2):
-            chatbot = gr.Chatbot(label="Chat", height=450)
+            chatbot = gr.Chatbot(
+                label="Chat",
+                height=450,
+                type="messages"  # Use new message format
+            )
 
             with gr.Row():
                 msg = gr.Textbox(
@@ -234,8 +242,12 @@ with gr.Blocks(title="VayuChat - Air Quality Analysis", theme=gr.themes.Soft()) 
                 gr.Markdown(stats_md)
 
     # Event handlers
-    msg.submit(respond, [msg, chatbot], [chatbot, image_output, msg])
-    submit_btn.click(respond, [msg, chatbot], [chatbot, image_output, msg])
+    msg.submit(respond, [msg, chatbot], [chatbot, image_output]).then(
+        lambda: "", outputs=[msg]  # Clear input after submit
+    )
+    submit_btn.click(respond, [msg, chatbot], [chatbot, image_output]).then(
+        lambda: "", outputs=[msg]  # Clear input after click
+    )
 
 
 if __name__ == "__main__":
