@@ -4,3 +4,7 @@ numpy>=1.24.0
 matplotlib>=3.7.0
 gradio>=4.0.0
 Pillow>=10.0.0
+
+# Optional: for LLM-powered routing
+openai>=1.0.0  # For LM Studio / Ollama (local)
+huggingface_hub>=0.20.0  # For HF Inference API
