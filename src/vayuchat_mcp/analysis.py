@@ -242,6 +242,47 @@ def compare_cities(value_column: str, cities: list[str] | None = None,
     return "\n".join(lines)
 
 
+def get_ranking(value_column: str, rank_type: str = "highest",
+                table: str = "air_quality") -> str:
+    """Get the city with highest/lowest value for a metric."""
+    dfs = get_dataframes()
+    if table not in dfs:
+        return f"Table '{table}' not found."
+
+    df = dfs[table]
+
+    if 'city' not in df.columns:
+        return "Table doesn't have 'city' column"
+
+    stats = df.groupby('city')[value_column].mean().round(2)
+
+    if rank_type in ["highest", "max", "maximum", "most", "worst"]:
+        top_city = stats.idxmax()
+        top_value = stats.max()
+        answer = f"**{top_city}** has the highest average {value_column} at **{top_value:.1f}**"
+    else:
+        top_city = stats.idxmin()
+        top_value = stats.min()
+        answer = f"**{top_city}** has the lowest average {value_column} at **{top_value:.1f}**"
+
+    # Add full ranking
+    sorted_stats = stats.sort_values(ascending=(rank_type not in ["highest", "max", "maximum", "most", "worst"]))
+
+    lines = [
+        f"# {value_column} Ranking",
+        "",
+        answer,
+        "",
+        "## Full Ranking:",
+        ""
+    ]
+
+    for i, (city, val) in enumerate(sorted_stats.items(), 1):
+        lines.append(f"{i}. **{city}:** {val:.1f}")
+
+    return "\n".join(lines)
+
+
 def analyze_correlation(columns: list[str] | None = None, target: str | None = None,
                         table: str = "air_quality") -> str:
     """Analyze correlations between numeric columns."""

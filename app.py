@@ -20,6 +20,7 @@ from src.vayuchat_mcp.analysis import (
     query_table,
     compare_weekday_weekend,
     compare_cities,
+    get_ranking,
     analyze_correlation,
     analyze_funding,
     get_city_profile,
@@ -53,6 +54,38 @@ def decode_image(image_data: str | None):
 def process_query(query: str) -> tuple[str, str | None]:
     """Process a natural language query and return response with optional image."""
     query_lower = query.lower()
+
+    # Detect metric from query
+    def get_metric(q):
+        for m in ["PM2.5", "PM10", "NO2", "SO2", "CO", "O3", "temperature", "humidity"]:
+            if m.lower() in q.lower():
+                return m
+        return "PM2.5"  # default
+
+    # Highest/lowest/max/min questions
+    if any(w in query_lower for w in ["highest", "lowest", "maximum", "minimum", "max", "min", "most", "least", "best", "worst"]):
+        metric = get_metric(query)
+        if any(w in query_lower for w in ["highest", "maximum", "max", "most", "worst"]):
+            return get_ranking(metric, "highest"), None
+        else:
+            return get_ranking(metric, "lowest"), None
+
+    # Average/mean questions for specific city
+    if any(w in query_lower for w in ["average", "mean", "avg"]):
+        metric = get_metric(query)
+        for city in ["Delhi", "Bangalore", "Mumbai", "Chennai", "Kolkata", "Hyderabad"]:
+            if city.lower() in query_lower:
+                return get_city_profile(city), None
+        # General average across cities
+        return compare_cities(metric), None
+
+    # "What is" / "How much" questions
+    if query_lower.startswith(("what is", "what's", "how much", "how high", "how bad")):
+        metric = get_metric(query)
+        for city in ["Delhi", "Bangalore", "Mumbai", "Chennai", "Kolkata", "Hyderabad"]:
+            if city.lower() in query_lower:
+                return get_city_profile(city), None
+        return compare_cities(metric), None
 
     # Data exploration
     if any(w in query_lower for w in ["tables", "available", "what data", "datasets", "list"]):
