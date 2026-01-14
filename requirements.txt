@@ -5,6 +5,11 @@ matplotlib>=3.7.0
 gradio>=4.0.0
 Pillow>=10.0.0
 
-# Optional: for LLM-powered routing
+# For LLM-powered routing (optional - falls back to keywords if not available)
+transformers>=4.36.0
+torch>=2.0.0
+accelerate>=0.25.0
+
+# Alternative routing options
 openai>=1.0.0  # For LM Studio / Ollama (local)
 huggingface_hub>=0.20.0  # For HF Inference API

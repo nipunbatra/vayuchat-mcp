@@ -134,6 +134,8 @@ def respond(message: str, history: list) -> tuple[list, Image.Image | None]:
 
 
 # Initialize router on startup
+# Set USE_TRANSFORMERS_ROUTER=true to use local SmolLM2 model
+# Set ROUTER_MODEL to change the model (default: HuggingFaceTB/SmolLM2-360M-Instruct)
 router = get_router()
 
 # Build the Gradio interface

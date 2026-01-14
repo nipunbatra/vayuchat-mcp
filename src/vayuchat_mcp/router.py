@@ -3,8 +3,8 @@ Intent Router - Routes natural language queries to appropriate functions.
 
 Supports:
 1. Local LLM (LM Studio, Ollama) via OpenAI-compatible API
-2. HF Inference API (free tier)
-3. Local transformers (SmolLM2, Qwen2.5)
+2. HF Transformers (SmolLM2, Qwen2.5-0.5B) - runs locally
+3. HF Inference API (free tier)
 4. Fallback to keyword matching
 """
 
@@ -22,9 +22,16 @@ except ImportError:
 
 try:
     from huggingface_hub import InferenceClient
-    HAS_HF = True
+    HAS_HF_HUB = True
 except ImportError:
-    HAS_HF = False
+    HAS_HF_HUB = False
+
+try:
+    from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
+    import torch
+    HAS_TRANSFORMERS = True
+except ImportError:
+    HAS_TRANSFORMERS = False
 
 
 # Available functions and their descriptions for the LLM
@@ -73,25 +80,28 @@ class IntentRouter:
         Initialize router.
 
         Args:
-            mode: "local" (LM Studio/Ollama), "hf" (HF Inference), "keywords" (no LLM), "auto"
+            mode: "local" (LM Studio/Ollama), "transformers" (local small model),
+                  "hf_api" (HF Inference API), "keywords" (no LLM), "auto"
         """
         self.mode = mode
         self.client = None
+        self.pipeline = None
 
         if mode == "auto":
             self._auto_detect()
         elif mode == "local":
             self._setup_local()
-        elif mode == "hf":
-            self._setup_hf()
+        elif mode == "transformers":
+            self._setup_transformers()
+        elif mode == "hf_api":
+            self._setup_hf_api()
 
     def _auto_detect(self):
         """Auto-detect available LLM backend."""
-        # Try local first (LM Studio default port)
+        # Try local LLM server first (LM Studio default port)
         if HAS_OPENAI:
             try:
                 client = OpenAI(base_url="http://localhost:1234/v1", api_key="not-needed")
-                # Quick test
                 client.models.list()
                 self.client = client
                 self.mode = "local"
@@ -100,24 +110,37 @@ class IntentRouter:
             except:
                 pass
 
-        # Try HF Inference API
-        if HAS_HF:
-            hf_token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_TOKEN")
-            if hf_token:
-                self.client = InferenceClient(token=hf_token)
-                self.mode = "hf"
-                print("Router: Using HF Inference API")
+        # Try transformers with small model (good for HF Spaces)
+        if HAS_TRANSFORMERS and os.environ.get("USE_TRANSFORMERS_ROUTER", "").lower() == "true":
+            try:
+                self._setup_transformers()
                 return
-            else:
-                # Try without token (some models work without)
-                self.client = InferenceClient()
-                self.mode = "hf"
-                print("Router: Using HF Inference API (no token)")
-                return
+            except Exception as e:
+                print(f"Transformers setup failed: {e}")
 
-        # Fallback to keywords
+        # Fallback to keywords (fast and reliable)
         self.mode = "keywords"
-        print("Router: Using keyword matching (no LLM available)")
+        print("Router: Using keyword matching")
+
+    def _setup_transformers(self):
+        """Setup local transformers pipeline with a small model."""
+        if not HAS_TRANSFORMERS:
+            raise ImportError("transformers required. Run: pip install transformers torch")
+
+        model_name = os.environ.get("ROUTER_MODEL", "HuggingFaceTB/SmolLM2-360M-Instruct")
+        print(f"Router: Loading {model_name}...")
+
+        # Use CPU by default, GPU if available
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        self.pipeline = pipeline(
+            "text-generation",
+            model=model_name,
+            device=device,
+            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+        )
+        self.mode = "transformers"
+        print(f"Router: Using transformers ({model_name}) on {device}")
 
     def _setup_local(self):
         """Setup local LLM client (LM Studio/Ollama)."""
@@ -127,13 +150,15 @@ class IntentRouter:
         base_url = os.environ.get("LOCAL_LLM_URL", "http://localhost:1234/v1")
         self.client = OpenAI(base_url=base_url, api_key="not-needed")
 
-    def _setup_hf(self):
-        """Setup HF Inference client."""
-        if not HAS_HF:
+    def _setup_hf_api(self):
+        """Setup HF Inference API client."""
+        if not HAS_HF_HUB:
             raise ImportError("huggingface_hub required. Run: pip install huggingface_hub")
 
         token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_TOKEN")
         self.client = InferenceClient(token=token)
+        self.mode = "hf_api"
+        print("Router: Using HF Inference API")
 
     def route(self, query: str) -> dict:
         """
@@ -148,7 +173,9 @@ class IntentRouter:
         try:
             if self.mode == "local":
                 return self._local_route(query)
-            elif self.mode == "hf":
+            elif self.mode == "transformers":
+                return self._transformers_route(query)
+            elif self.mode == "hf_api":
                 return self._hf_route(query)
         except Exception as e:
             print(f"LLM routing failed: {e}, falling back to keywords")
@@ -166,6 +193,21 @@ class IntentRouter:
         )
 
         return self._parse_response(response.choices[0].message.content)
+
+    def _transformers_route(self, query: str) -> dict:
+        """Route using local transformers model."""
+        prompt = ROUTER_PROMPT.format(functions=FUNCTION_DESCRIPTIONS, query=query)
+
+        outputs = self.pipeline(
+            prompt,
+            max_new_tokens=100,
+            do_sample=False,
+            pad_token_id=self.pipeline.tokenizer.eos_token_id,
+        )
+
+        # Extract generated text (after prompt)
+        generated = outputs[0]["generated_text"][len(prompt):]
+        return self._parse_response(generated)
 
     def _hf_route(self, query: str) -> dict:
         """Route using HF Inference API."""
