@@ -1,0 +1,7 @@
+city,state,population_millions,area_sq_km,vehicles_lakhs,industries,green_cover_pct,who_limit_days_exceeded
+Delhi,Delhi,32.9,1484,130,28000,21.9,340
+Bangalore,Karnataka,13.2,741,95,12000,17.8,180
+Mumbai,Maharashtra,21.3,603,45,15000,12.5,220
+Chennai,Tamil Nadu,11.5,426,58,9500,15.2,160
+Kolkata,West Bengal,15.1,206,32,8000,10.5,250
+Hyderabad,Telangana,10.5,650,62,11000,16.4,170

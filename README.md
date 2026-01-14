@@ -1,21 +1,40 @@
 # VayuChat MCP
 
-A FastMCP server for natural language data analysis with pandas and matplotlib.
-
-This is an MCP (Model Context Protocol) server implementation of [VayuChat](https://github.com/nipunbatra/vayuchat-webllm), allowing you to analyze CSV data using natural language through Claude or any other MCP-compatible client.
+Natural language data analysis for air quality data using MCP (Model Context Protocol).
 
 ## Features
 
-- **Load CSV files** into pandas DataFrames
-- **Explore data** with detailed column information and statistics
-- **Execute Python code** with full access to pandas, numpy, and matplotlib
-- **Generate visualizations** that are returned as base64-encoded images
-- **Query data** using pandas query syntax
+### Pre-loaded Datasets
+- **air_quality**: Hourly PM2.5, PM10, NO2, SO2, CO, O3 readings for Delhi & Bangalore
+- **funding**: Government air quality funding by city/year (2020-2024)
+- **city_info**: City metadata - population, vehicles, industries, green cover
+
+### Analysis Tools (No Code Required!)
+| Function | Description |
+|----------|-------------|
+| `list_tables` | Show available tables |
+| `show_table` | Display table data |
+| `describe_table` | Detailed statistics |
+| `query_table` | Filter with pandas query |
+| `compare_weekday_weekend` | Weekday vs weekend analysis |
+| `compare_cities` | Compare metrics across cities |
+| `analyze_correlation` | Correlation analysis |
+| `analyze_funding` | Funding breakdown |
+| `get_city_profile` | Comprehensive city profile |
+
+### Visualization Tools
+| Function | Description |
+|----------|-------------|
+| `plot_comparison` | Bar/box charts |
+| `plot_time_series` | Time series charts |
+| `plot_weekday_weekend` | Weekday vs weekend bars |
+| `plot_funding_trend` | Funding over years |
+| `plot_hourly_pattern` | Hourly patterns |
 
 ## Installation
 
 ```bash
-# Using uv (recommended)
+# Using uv
 uv pip install -e .
 
 # Or with pip
@@ -24,9 +43,9 @@ pip install -e .
 
 ## Usage
 
-### With Claude Code
+### As MCP Server (with Claude Code)
 
-Add to your Claude Code MCP configuration (`~/.claude/claude_desktop_config.json` or project settings):
+Add to your Claude Code MCP configuration:
 
 ```json
 {
@@ -39,102 +58,75 @@ Add to your Claude Code MCP configuration (`~/.claude/claude_desktop_config.json
 }
 ```
 
-Or if installed globally:
-
-```json
-{
-  "mcpServers": {
-    "vayuchat": {
-      "command": "vayuchat-mcp"
-    }
-  }
-}
-```
-
-### Running Standalone
+### As Gradio App (HF Spaces)
 
 ```bash
-# With uv
-uv run vayuchat-mcp
+# Run locally
+python app.py
 
-# Or directly
-vayuchat-mcp
+# Or with gradio
+gradio app.py
 ```
 
-## Available Tools
+Then open http://localhost:7860
 
-### `load_csv`
-Load a CSV file into a pandas DataFrame.
+### Deploy to Hugging Face Spaces
 
-```
-load_csv(file_path="/path/to/data.csv", name="my_data")
-```
+1. Create a new Space on HF (Gradio SDK)
+2. Upload these files:
+   - `app.py`
+   - `requirements.txt`
+   - `src/` folder
+   - `data/` folder
 
-### `list_dataframes`
-List all currently loaded dataframes with their basic info.
+Or connect your GitHub repo directly to HF Spaces.
 
-### `get_dataframe_info`
-Get detailed information about a specific dataframe including column types, null counts, and sample values.
-
-```
-get_dataframe_info(name="my_data")
-```
-
-### `execute_code`
-Execute Python code for data analysis. Has access to:
-- All loaded dataframes by their names
-- `pandas` as `pd`
-- `numpy` as `np`
-- `matplotlib.pyplot` as `plt`
-
-Automatically captures generated plots and returns them as base64 images.
-
-```python
-execute_code(code="""
-# Calculate average by category
-result = my_data.groupby('category')['value'].mean()
-print(result)
-
-# Create a visualization
-plt.figure(figsize=(10, 6))
-result.plot(kind='bar')
-plt.title('Average Value by Category')
-plt.tight_layout()
-""")
-```
-
-### `query_dataframe`
-Run a pandas query on a dataframe.
+## Example Queries
 
 ```
-query_dataframe(name="my_data", query="value > 100 and category == 'A'")
+# Data exploration
+"What tables are available?"
+"Show me the funding table"
+"Describe the air quality data"
+
+# Analysis
+"Compare weekday vs weekend PM2.5"
+"Compare cities by PM10 levels"
+"Get Delhi city profile"
+"Show correlation with PM2.5"
+
+# Funding
+"Show funding for Delhi"
+"What's the funding trend?"
+
+# Visualizations
+"Plot weekday vs weekend PM2.5"
+"Show hourly pattern for NO2"
+"Plot funding trend chart"
 ```
 
-### `describe_dataframe`
-Get statistical summary of a dataframe.
+## Architecture
 
 ```
-describe_dataframe(name="my_data", columns=["value", "count"])
+NLQ (User Question)
+       ↓
+  Gradio Chat UI
+       ↓
+  Query Router (keyword-based / LLM)
+       ↓
+  MCP Tool Call
+       ↓
+  Response (Markdown + Base64 Plot)
+       ↓
+  Rendered in UI
 ```
 
-### `sample_dataframe`
-Get a sample of rows from a dataframe.
+## Data Sources
 
-```
-sample_dataframe(name="my_data", n=10, random=True)
-```
+- Air quality data: Simulated based on real patterns from Indian cities
+- Funding data: Mock data representing typical government allocations
+- City info: Approximate real statistics
 
-### `get_column_values`
-Get unique values or value counts from a column.
+## License
 
-```
-get_column_values(name="my_data", column="category", unique=False, top_n=10)
-```
-
-### `unload_dataframe`
-Unload a dataframe from memory.
-
-## Example Conversation
-
-```
-User: Load the air quality data from ~/data/air_quality.csv
+MIT
