@@ -177,11 +177,11 @@ def process_query(query: str) -> tuple[str, str | None]:
 """, None
 
 
-def respond(message: str, history: list[dict]) -> tuple[list[dict], Image.Image | None]:
+def respond(message: str, history: list) -> tuple[list, Image.Image | None]:
     """Handle user message and return updated history + image."""
     response_text, img_data = process_query(message)
 
-    # Gradio 4.x uses dict format for messages
+    # Gradio 6.x uses dict format for messages
     history = history + [
         {"role": "user", "content": message},
         {"role": "assistant", "content": response_text}
@@ -192,7 +192,7 @@ def respond(message: str, history: list[dict]) -> tuple[list[dict], Image.Image 
 
 
 # Build the Gradio interface
-with gr.Blocks(title="VayuChat - Air Quality Analysis", theme=gr.themes.Soft()) as demo:
+with gr.Blocks(title="VayuChat - Air Quality Analysis") as demo:
     gr.Markdown("""
     # VayuChat - Air Quality Analysis
 
@@ -206,11 +206,7 @@ with gr.Blocks(title="VayuChat - Air Quality Analysis", theme=gr.themes.Soft()) 
 
     with gr.Row():
         with gr.Column(scale=2):
-            chatbot = gr.Chatbot(
-                label="Chat",
-                height=450,
-                type="messages"  # Use new message format
-            )
+            chatbot = gr.Chatbot(label="Chat", height=450)
 
             with gr.Row():
                 msg = gr.Textbox(
@@ -243,10 +239,10 @@ with gr.Blocks(title="VayuChat - Air Quality Analysis", theme=gr.themes.Soft()) 
 
     # Event handlers
     msg.submit(respond, [msg, chatbot], [chatbot, image_output]).then(
-        lambda: "", outputs=[msg]  # Clear input after submit
+        lambda: "", outputs=[msg]
     )
     submit_btn.click(respond, [msg, chatbot], [chatbot, image_output]).then(
-        lambda: "", outputs=[msg]  # Clear input after click
+        lambda: "", outputs=[msg]
     )
 
 
